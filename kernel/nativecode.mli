@@ -19,6 +19,10 @@ compiler. mllambda represents a fragment of ML, and can easily be printed
 to OCaml code. *)
 
 type lname
+type gname
+
+val fresh_lname : Name.t -> lname
+
 type mllambda
 
 val mkMLlet : lname -> mllambda -> mllambda -> mllambda
@@ -31,6 +35,10 @@ type global
 
 val mkGlobalRelAssum : int -> global
 val mkGlobalVarAssum : Id.t -> global
+
+val mk_internal_let : string -> mllambda -> global
+
+val glet : gname -> mllambda -> global
 
 val pp_global : Format.formatter -> global -> unit
 
@@ -94,6 +102,16 @@ val compile_constant_field : env -> string -> Constant.t ->
 
 val compile_mind_field : ModPath.t -> Label.t ->
   global list -> mutual_inductive_body -> global list
+
+val compile_mind_deps : env -> string -> interactive:bool -> linkable_code -> Names.Mindmap_env.key -> linkable_code
+
+val is_code_loaded : interactive:bool -> Environ.link_info ref -> bool
+
+val fresh_univ : unit -> lname
+
+val optimize_stk : global list -> global list
+
+val mllambda_of_lambda : lname option -> global list -> Label.t option -> lambda -> global list * ((Id.t * mllambda) list * (int * mllambda) list) * mllambda
 
 val mk_conv_code : env -> evars -> string -> constr -> constr -> linkable_code
 val mk_norm_code : env -> evars -> string -> constr -> linkable_code

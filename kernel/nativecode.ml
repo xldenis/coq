@@ -667,6 +667,7 @@ type global =
 let mkGlobalVarAssum id = Glet(Gnamed id, MLprimitive (Mk_var id))
 let mkGlobalRelAssum n  = Glet(Grel n, MLprimitive (Mk_rel n))
 
+let glet n l = Glet (n, l)
 (* Alpha-equivalence on globals *)
 let eq_global g1 g2 =
   match g1, g2 with
