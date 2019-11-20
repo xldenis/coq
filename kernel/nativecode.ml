@@ -2108,6 +2108,7 @@ let mk_norm_harness mllam gl =
     MLapp (MLglobal (Ginternal "get_symbols"),
       [|MLglobal (Ginternal "()")|])) in
   header::gl
+
 let mk_norm_code const_to_lam env sigma prefix t =
   clear_symbols ();
   clear_global_tbl ();
