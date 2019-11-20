@@ -31,7 +31,7 @@ and translate_field prefix mp env acc (l,x) =
      (if !Flags.debug then
         let msg = Printf.sprintf "Compiling constant %s..." (Constant.to_string con) in
 	Feedback.msg_debug (Pp.str msg));
-     compile_constant_field env prefix con acc cb
+     compile_constant_field Nativelambda.lambda_of_constr env prefix con acc cb
   | SFBmind mb ->
      (if !Flags.debug then
 	let id = mb.mind_packets.(0).mind_typename in

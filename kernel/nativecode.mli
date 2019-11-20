@@ -12,51 +12,20 @@ open Constr
 open Declarations
 open Environ
 open Nativelambda
-open Nativevalues
 
 (** This file defines the mllambda code generation phase of the native
 compiler. mllambda represents a fragment of ML, and can easily be printed
 to OCaml code. *)
 
-type lname
-type gname
-
-val fresh_lname : Name.t -> lname
-
 type mllambda
-
-val mkMLlet : lname -> mllambda -> mllambda -> mllambda
-val mkMLapp : mllambda -> mllambda array -> mllambda
-val mkMLlocal : lname -> mllambda
-val mkMLlam : lname array -> mllambda -> mllambda
-val mkMLarray : mllambda array -> mllambda
-
 type global
-
-val mkGlobalRelAssum : int -> global
-val mkGlobalVarAssum : Id.t -> global
-
-val mk_internal_let : string -> mllambda -> global
-
-val glet : gname -> mllambda -> global
 
 val pp_global : Format.formatter -> global -> unit
 
 val mk_open : string -> global
 
 (* Precomputed values for a compilation unit *)
-type symbol =
-  | SymbValue of Nativevalues.t
-  | SymbSort of Sorts.t
-  | SymbName of Name.t
-  | SymbConst of Constant.t
-  | SymbMatch of annot_sw
-  | SymbInd of inductive
-  | SymbMeta of metavariable
-  | SymbEvar of Evar.t
-  | SymbLevel of Univ.Level.t
-  | SymbProj of (inductive * int)
-
+type symbol
 type symbols
 
 val empty_symbols : symbols
@@ -91,31 +60,28 @@ type code_location_update
 type code_location_updates
 type linkable_code = global list * code_location_updates
 
+type constr_to_lambda = env -> evars -> constr -> lambda
+
 val clear_global_tbl : unit -> unit
 
 val empty_updates : code_location_updates
 
 val register_native_file : string -> unit
 
-val compile_constant_field : env -> string -> Constant.t ->
+val compile_constant_field : constr_to_lambda -> env -> string -> Constant.t ->
   global list -> constant_body -> global list
 
-val compile_prim_constant : bool -> link_info -> Constant.t -> (global list * link_info)
 val compile_mind_field : ModPath.t -> Label.t ->
   global list -> mutual_inductive_body -> global list
 
 val compile_mind_deps : env -> string -> interactive:bool -> linkable_code -> Names.Mindmap_env.key -> linkable_code
 
-val is_code_loaded : interactive:bool -> Environ.link_info ref -> bool
+val compile_deps : constr_to_lambda ->
+  env -> evars -> string -> interactive:bool ->
+  linkable_code -> constr -> linkable_code
 
-val fresh_univ : unit -> lname
-
-val optimize_stk : global list -> global list
-
-val mllambda_of_lambda : lname option -> global list -> Label.t option -> lambda -> global list * ((Id.t * mllambda) list * (int * mllambda) list) * mllambda
-
-val mk_conv_code : env -> evars -> string -> constr -> constr -> linkable_code
-val mk_norm_code : env -> evars -> string -> constr -> linkable_code
+val mk_conv_code : constr_to_lambda -> env -> evars -> string -> constr -> constr -> linkable_code
+val mk_norm_code : constr_to_lambda -> env -> evars -> string -> constr -> linkable_code
 
 val mk_norm_harness : mllambda -> global list -> global list
 
@@ -123,7 +89,7 @@ val mk_library_header : DirPath.t -> global list
 
 val mod_uid_of_dirpath : DirPath.t -> string
 
-val link_info_of_dirpath : DirPath.t -> link_info
+val link_info_of_dirpath : DirPath.t -> Environ.link_info
 
 val update_locations : code_location_updates -> unit
 
