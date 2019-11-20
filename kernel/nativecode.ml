@@ -1868,45 +1868,35 @@ and compile_named env sigma univ auxdefs id =
   | LocalAssum _ ->
       mkGlobalVarAssum id :: auxdefs
 
+let compile_prim_constant no_univs prefix con =
+  let i = push_symbol (SymbConst con) in
+  let args = if no_univs then [|get_const_code i; MLarray [||]|] else [|get_const_code i|] in
+  [Glet(Gconstant ("", con), mkMLapp (MLprimitive Mk_const) args)], prefix
+
+let compile_def env sigma univ l code =
+    let (auxdefs,code) = compile_with_fv env sigma univ [] l code in
+    match univ with
+    | Some u -> (auxdefs,mkMLlam [|u|] code)
+    | None -> (auxdefs, code)
+
 let compile_constant env sigma prefix ~interactive con cb =
     let no_univs = 0 = Univ.AUContext.size (Declareops.constant_polymorphic_context cb) in
+    let prefix = if interactive then LinkedInteractive prefix else Linked prefix in
     begin match cb.const_body with
     | Def t ->
       let t = Mod_subst.force_constr t in
       let code = lambda_of_constr env sigma t in
       if !Flags.debug then Feedback.msg_debug (Pp.str "Generated lambda code");
-      let is_lazy = is_lazy t in
-      let code = if is_lazy then mk_lazy code else code in
-      let name =
-        if interactive then LinkedInteractive prefix
-        else Linked prefix
-      in
+      let code = if is_lazy t then mk_lazy code else code in
       let l = Constant.label con in
-      let auxdefs,code =
-	if no_univs then compile_with_fv env sigma None [] (Some l) code
-	else
-	  let univ = fresh_univ () in
-	  let (auxdefs,code) = compile_with_fv env sigma (Some univ) [] (Some l) code in
-          (auxdefs,mkMLlam [|univ|] code)
-      in
+      let univ = if no_univs then None else Some (fresh_univ ()) in
+      let auxdefs,code = compile_def env sigma univ (Some l) code in
       if !Flags.debug then Feedback.msg_debug (Pp.str "Generated mllambda code");
-      let code =
-        optimize_stk (Glet(Gconstant ("", con),code)::auxdefs)
-      in
+      let code = optimize_stk (Glet(Gconstant ("", con),code)::auxdefs) in
       if !Flags.debug then Feedback.msg_debug (Pp.str "Optimized mllambda code");
-      code, name
-    | _ ->
-        let i = push_symbol (SymbConst con) in
-	let args =
-	  if no_univs then [|get_const_code i; MLarray [||]|]
-	  else [|get_const_code i|]
-	in
-	(*
-	let t = mkMLlam [|univ|] (mkMLapp (MLprimitive Mk_const)
-	 *)
-        [Glet(Gconstant ("", con), mkMLapp (MLprimitive Mk_const) args)],
-	  if interactive then LinkedInteractive prefix
-	  else Linked prefix
+      code, prefix
+    | _ -> compile_prim_constant no_univs prefix con
+
     end
 
 module StringOrd = struct type t = string let compare = String.compare end
