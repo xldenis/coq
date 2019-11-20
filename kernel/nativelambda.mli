@@ -44,6 +44,7 @@ type lambda =
   | Lind          of prefix * pinductive
   | Llazy
   | Lforce
+  | Lconst_accu   of prefix * pconstant
 
 and lam_branches = (constructor * Name.t Context.binder_annot array * lambda) array
 

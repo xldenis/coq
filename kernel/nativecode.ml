@@ -34,9 +34,9 @@ let eq_lname ln1 ln2 =
 
 let dummy_lname = { lname = Anonymous; luid = -1 }
 
-module LNord = 
-  struct 
-    type t = lname 
+module LNord =
+  struct
+    type t = lname
     let compare l1 l2 = l1.luid - l2.luid
   end
 module LNmap = Map.Make(LNord)
@@ -44,12 +44,12 @@ module LNset = Set.Make(LNord)
 
 let lname_ctr = ref (-1)
 
-let fresh_lname n = 
+let fresh_lname n =
   incr lname_ctr;
   { lname = n; luid = !lname_ctr }
 
 (** Global names **)
-type gname = 
+type gname =
   | Gind of string * inductive (* prefix, inductive name *)
   | Gconstruct of string * constructor (* prefix, constructor name *)
   | Gconstant of string * Constant.t (* prefix, constant name *)
@@ -122,7 +122,7 @@ let fresh_gcase l =
 
 let pred_ctr = ref (-1)
 
-let fresh_gpred l = 
+let fresh_gpred l =
   incr pred_ctr;
   Gpred (l,!pred_ctr)
 
@@ -273,7 +273,7 @@ type primitive =
   | Mk_ind
   | Mk_const
   | Mk_sw
-  | Mk_fix of rec_pos * int 
+  | Mk_fix of rec_pos * int
   | Mk_cofix of int
   | Mk_rel of int
   | Mk_var of Id.t
@@ -372,10 +372,10 @@ let primitive_hash = function
   | Mk_empty_instance -> 38
 
 type mllambda =
-  | MLlocal        of lname 
-  | MLglobal       of gname 
+  | MLlocal        of lname
+  | MLglobal       of gname
   | MLprimitive    of primitive
-  | MLlam          of lname array * mllambda 
+  | MLlam          of lname array * mllambda
   | MLletrec       of (lname * lname array * mllambda) array * mllambda
   | MLlet          of lname * mllambda * mllambda
   | MLapp          of mllambda * mllambda array
@@ -578,7 +578,7 @@ let fv_lam l =
 	let bind = Array.fold_right LNset.add ln bind in
 	aux body bind fv
     | MLletrec(bodies,def) ->
-	let bind = 
+        let bind =
 	  Array.fold_right (fun (id,_,_) b -> LNset.add id b) bodies bind in
 	let fv_body (_,ln,body) fv =
 	  let bind = Array.fold_right LNset.add ln bind in
@@ -594,12 +594,12 @@ let fv_lam l =
     | MLmatch(_,a,p,bs) ->
       let fv = aux a bind (aux p bind fv) in
       let fv_bs (cargs, body) fv =
-	let bind = 
+        let bind =
 	  List.fold_right (fun (_,args) bind ->
-	    Array.fold_right 
-	      (fun o bind -> match o with 
-	      | Some l -> LNset.add l bind 
-	      | _ -> bind) args bind) 
+            Array.fold_right
+              (fun o bind -> match o with
+              | Some l -> LNset.add l bind
+              | _ -> bind) args bind)
 	    cargs bind in
 	aux body bind fv in
       Array.fold_right fv_bs bs fv
@@ -615,7 +615,7 @@ let fv_lam l =
 
 
 let mkMLlam params body =
-  if Array.is_empty params then body 
+  if Array.is_empty params then body
   else
     match body with
     | MLlam (params', body) -> MLlam(Array.append params params', body)
@@ -646,10 +646,10 @@ let decompose_MLlam c =
 (*s Global declaration *)
 type global =
 (*  | Gtblname of gname * Id.t array *)
-  | Gtblnorm of gname * lname array * mllambda array 
+  | Gtblnorm of gname * lname array * mllambda array
   | Gtblfixtype of gname * lname array * mllambda array
   | Glet of gname * mllambda
-  | Gletcase of 
+  | Gletcase of
       gname * lname array * annot_sw * mllambda * mllambda * mllam_branches
   | Gopen of string
   | Gtype of inductive * int array
@@ -707,7 +707,7 @@ let hash_global g =
   | Gtype (ind, arr) ->
       combinesmall 6 (combine (ind_hash ind) (Array.fold_left combine 0 arr))
   | Gcomment s -> combinesmall 7 (String.hash s)
-  
+
 let global_stack = ref ([] : global list)
 
 module HashedTypeGlobal = struct
@@ -763,19 +763,19 @@ let empty_env univ () =
     env_univ = univ
   }
 
-let push_rel env id = 
+let push_rel env id =
   let local = fresh_lname id.binder_name in
-  local, { env with 
+  local, { env with
 	   env_rel = MLlocal local :: env.env_rel;
 	   env_bound = env.env_bound + 1
 	 }
 
 let push_rels env ids =
-  let lnames, env_rel = 
+  let lnames, env_rel =
     Array.fold_left (fun (names,env_rel) id ->
       let local = fresh_lname id.binder_name in
       (local::names, MLlocal local::env_rel)) ([],env.env_rel) ids in
-  Array.of_list (List.rev lnames), { env with 
+  Array.of_list (List.rev lnames), { env with
 			  env_rel = env_rel;
 			  env_bound = env.env_bound + Array.length ids
 			}
@@ -783,7 +783,7 @@ let push_rels env ids =
 let get_rel env id i =
   if i <= env.env_bound then
     List.nth env.env_rel (i-1)
-  else 
+  else
     let i = i - env.env_bound in
     try Int.List.assoc i !(env.env_urel)
     with Not_found ->
@@ -803,19 +803,19 @@ let fresh_univ () =
 
 (*s Traduction of lambda to mllambda *)
 
-let get_prod_name codom = 
+let get_prod_name codom =
   match codom with
   | MLlam(ids,_) -> ids.(0).lname
   | _ -> assert false
 
-let get_lname (_,l) = 
+let get_lname (_,l) =
   match l with
   | MLlocal id -> id
   | _ -> invalid_arg "Nativecode.get_lname"
 
 (* Collects free variables from env in an array of local names *)
-let fv_params env = 
-  let fvn, fvr = !(env.env_named), !(env.env_urel) in 
+let fv_params env =
+  let fvn, fvr = !(env.env_named), !(env.env_urel) in
   let size = List.length fvn + List.length fvr in
   let start,params = match env.env_univ with
     | None -> 0, Array.make size dummy_lname
@@ -839,7 +839,7 @@ let fv_params env =
     params
   end
 
-let generalize_fv env body = 
+let generalize_fv env body =
   mkMLlam (fv_params env) body
 
 let empty_args = [||]
@@ -851,7 +851,7 @@ let fv_args env fvn fvr =
     | Some u -> 1, let t = Array.make (size + 1) (MLint 0) in t.(0) <- MLlocal u; t
   in
   if Array.is_empty args then empty_args
-  else 
+  else
     begin
       let fvn = ref fvn in
       let i = ref start in
@@ -863,7 +863,7 @@ let fv_args env fvn fvr =
       let fvr = ref fvr in
       while not (List.is_empty !fvr) do
 	let (k,_ as kml) = List.hd !fvr in
-	let n = get_lname kml in 
+        let n = get_lname kml in
 	args.(!i) <- get_rel env n.lname k;
 	fvr := List.tl !fvr;
 	incr i
@@ -912,12 +912,12 @@ let get_proj_code i =
     [|MLglobal symbols_tbl_name; MLint i|])
 
 type rlist =
-  | Rnil 
-  | Rcons of (constructor * lname option array) list ref * LNset.t * mllambda * rlist' 
+  | Rnil
+  | Rcons of (constructor * lname option array) list ref * LNset.t * mllambda * rlist'
 and rlist' = rlist ref
 
-let rm_params fv params = 
-  Array.map (fun l -> if LNset.mem l fv then Some l else None) params 
+let rm_params fv params =
+  Array.map (fun l -> if LNset.mem l fv then Some l else None) params
 
 let rec insert cargs body rl =
  match !rl with
@@ -950,12 +950,12 @@ type prim_aux =
   | PAml of mllambda
 
 let add_check cond args =
-  let aux cond a = 
+  let aux cond a =
     match a with
     | PAml(MLint _) -> cond
     | PAml ml ->
        (* FIXME: use explicit equality function *)
-       if List.mem ml cond then cond else ml::cond 
+       if List.mem ml cond then cond else ml::cond
     | _ -> cond
   in
   Array.fold_left aux cond args
@@ -1071,19 +1071,24 @@ let ml_of_instance instance u =
   | Lconst (prefix, (c, u)) ->
      let args = ml_of_instance env.env_univ u in
      mkMLapp (MLglobal(Gconstant (prefix, c))) args
+  | Lconst_accu (_, (c, _)) ->
+      let i = push_symbol (SymbConst c) in
+
+      let args = [| get_const_code i; MLarray [||] |] in
+        (mkMLapp (MLprimitive (Mk_const)) args)
   | Lproj (prefix, ind, i) -> MLglobal(Gproj (prefix, ind, i))
   | Lprim _ ->
     let decl,cond,paux = extract_prim (ml_of_lam env l) t in
     compile_prim decl cond paux
   | Lcase (annot,p,a,bs) ->
-      (* let predicate_uid fv_pred = compilation of p 
-         let rec case_uid fv a_uid = 
+      (* let predicate_uid fv_pred = compilation of p
+         let rec case_uid fv a_uid =
            match a_uid with
            | Accu _ => mk_sw (predicate_uid fv_pred) (case_uid fv) a_uid
-           | Ci argsi => compilation of branches 
+           | Ci argsi => compilation of branches
          compile case = case_uid fv (compilation of a) *)
       (* Compilation of the predicate *)
-         (* Remark: if we do not want to compile the predicate we 
+         (* Remark: if we do not want to compile the predicate we
             should a least compute the fv, then store the lambda representation
             of the predicate (not the mllambda) *)
       let env_p = empty_env env.env_univ () in
@@ -1097,14 +1102,14 @@ let ml_of_instance instance u =
       let a_uid = fresh_lname Anonymous in
       let la_uid = MLlocal a_uid in
       (* compilation of branches *)
-      let ml_br (c,params, body) = 
+      let ml_br (c,params, body) =
 	let lnames, env_c = push_rels env_c params in
 	(c, lnames, ml_of_lam env_c l body)
       in
       let bs = Array.map ml_br bs in
       let cn = fresh_gcase l in
       (* Compilation of accu branch *)
-      let pred = MLapp(MLglobal pn, fv_args env_c pfvn pfvr) in  
+      let pred = MLapp(MLglobal pn, fv_args env_c pfvn pfvr) in
       let (fvn, fvr) = !(env_c.env_named), !(env_c.env_urel) in
       let cn_fv = mkMLapp (MLglobal cn) (fv_args env_c fvn fvr) in
          (* remark : the call to fv_args does not add free variables in env_c *)
@@ -1125,20 +1130,20 @@ let ml_of_instance instance u =
 	if annot.asw_finite then arg
         else mkForceCofix annot.asw_prefix annot.asw_ind arg in
       mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
-  | Lif(t,bt,bf) -> 
+  | Lif(t,bt,bf) ->
       MLif(ml_of_lam env l t, ml_of_lam env l bt, ml_of_lam env l bf)
   | Lfix ((rec_pos, inds, start), (ids, tt, tb)) ->
-      (* let type_f fvt = [| type fix |] 
+      (* let type_f fvt = [| type fix |]
          let norm_f1 fv f1 .. fn params1 = body1
 	 ..
          let norm_fn fv f1 .. fn paramsn = bodyn
-         let norm fv f1 .. fn = 
+         let norm fv f1 .. fn =
 	    [|norm_f1 fv f1 .. fn; ..; norm_fn fv f1 .. fn|]
-         compile fix = 
-	   let rec f1 params1 = 
+         compile fix =
+           let rec f1 params1 =
              if is_accu rec_pos.(1) then mk_fix (type_f fvt) (norm fv) params1
 	     else norm_f1 fv f1 .. fn params1
-           and .. and fn paramsn = 
+           and .. and fn paramsn =
 	     if is_accu rec_pos.(n) then mk_fix (type_f fvt) (norm fv) paramsn
              else norm_fn fv f1 .. fv paramsn in
 	   start
@@ -1165,7 +1170,7 @@ let ml_of_instance instance u =
       in
       let ml_of_fix i body =
         let varsi, bodyi = decompose_Llam_Llet body in
-        let paramsi,letsi,envi = 
+        let paramsi,letsi,envi =
           Array.fold_left mk_lam_or_let ([],[],env_n) varsi
         in
         let paramsi,letsi =
@@ -1185,30 +1190,30 @@ let ml_of_instance instance u =
       let t_norm_f = Array.mapi (fun i body ->
 	push_global_let (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
       let norm = fresh_gnormtbl l in
-      let norm = push_global_norm norm fv_params 
+      let norm = push_global_norm norm fv_params
          (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
       (* Compilation of fix *)
-      let fv_args = fv_args env fvn fvr in      
+      let fv_args = fv_args env fvn fvr in
       let lf, _env = push_rels env ids in
       let lf_args = Array.map (fun id -> MLlocal id) lf in
       let mk_norm = MLapp(MLglobal norm, fv_args) in
-      let mkrec i lname = 
+      let mkrec i lname =
 	let paramsi = t_params.(i) in
 	let reci = MLlocal (paramsi.(rec_pos.(i))) in
 	let pargsi = Array.map (fun id -> MLlocal id) paramsi in
         let (prefix, ind) = inds.(i) in
-	let body = 
+        let body =
           MLif(MLisaccu (prefix, ind, reci),
-	       mkMLapp 
-		 (MLapp(MLprimitive (Mk_fix(rec_pos,i)), 
+               mkMLapp
+                 (MLapp(MLprimitive (Mk_fix(rec_pos,i)),
 			[|mk_type; mk_norm|]))
 		 pargsi,
-	       MLapp(MLglobal t_norm_f.(i), 
-		     Array.concat [fv_args;lf_args;pargsi])) 
+               MLapp(MLglobal t_norm_f.(i),
+                     Array.concat [fv_args;lf_args;pargsi]))
 	in
 	(lname, paramsi, body) in
       MLletrec(Array.mapi mkrec lf, lf_args.(start))
-  | Lcofix (start, (ids, tt, tb)) -> 
+  | Lcofix (start, (ids, tt, tb)) ->
       (* Compilation of type *)
       let env_t = empty_env env.env_univ () in
       let ml_t = Array.map (ml_of_lam env_t l) tt in
@@ -1217,7 +1222,7 @@ let ml_of_instance instance u =
       let gft = fresh_gfixtype l in
       let gft = push_global_fixtype gft params_t ml_t in
       let mk_type = MLapp(MLglobal gft, args_t) in
-      (* Compilation of norm_i *) 
+      (* Compilation of norm_i *)
       let ndef = Array.length ids in
       let lf,env_n = push_rels (empty_env env.env_univ ()) ids in
       let t_params = Array.make ndef [||] in
@@ -1240,7 +1245,7 @@ let ml_of_instance instance u =
       let norm = push_global_norm norm fv_params
         (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
       (* Compilation of fix *)
-      let fv_args = fv_args env fvn fvr in      
+      let fv_args = fv_args env fvn fvr in
       let mk_norm = MLapp(MLglobal norm, fv_args) in
       let lnorm = fresh_lname Anonymous in
       let ltype = fresh_lname Anonymous in
@@ -1261,16 +1266,16 @@ let ml_of_instance instance u =
 	MLlet(lname,
 	      MLapp(MLprimitive(Mk_cofix i),[| MLlocal ltype; MLlocal lnorm|]),
 	      cont) in
-      let init = Array.fold_right_i mk_let lf upd in 
+      let init = Array.fold_right_i mk_let lf upd in
       MLlet(lnorm, mk_norm, MLlet(ltype, mk_type, init))
-  (*    	    
-      let mkrec i lname = 
+  (*
+      let mkrec i lname =
 	let paramsi = t_params.(i) in
 	let pargsi = Array.map (fun id -> MLlocal id) paramsi in
 	let uniti = fresh_lname Anonymous in
-	let body = 
+        let body =
 	  MLapp( MLprimitive(Mk_cofix i),
-		 [|mk_type;mk_norm; 
+                 [|mk_type;mk_norm;
 		   MLlam([|uniti|],
 			 MLapp(MLglobal t_norm_f.(i),
 			       Array.concat [fv_args;lf_args;pargsi]))|]) in
@@ -1307,11 +1312,11 @@ let mllambda_of_lambda univ auxdefs l t =
   let fv_rel = !(env.env_urel) in
   let fv_named = !(env.env_named) in
   (* build the free variables *)
-  let get_lname (_,t) = 
+  let get_lname (_,t) =
    match t with
    | MLlocal x -> x
    | _ -> assert false in
-  let params = 
+  let params =
     List.append (List.map get_lname fv_rel) (List.map get_lname fv_named) in
   if List.is_empty params then
     (!global_stack, ([],[]), ml)
@@ -1323,13 +1328,13 @@ let mllambda_of_lambda univ auxdefs l t =
 
 (** Optimization of match and fix *)
 
-let can_subst l = 
+let can_subst l =
   match l with
   | MLlocal _ | MLint _ | MLuint _ | MLglobal _ -> true
   | _ -> false
 
 let subst s l =
-  if LNmap.is_empty s then l 
+  if LNmap.is_empty s then l
   else
     let rec aux l =
       match l with
@@ -1346,7 +1351,7 @@ let subst s l =
 	  let auxb (cargs,body) = (cargs,aux body) in
 	  MLmatch(annot,a,aux accu, Array.map auxb bs)
       | MLconstruct(prefix,c,args) -> MLconstruct(prefix,c,Array.map aux args)
-      | MLsetref(s,l1) -> MLsetref(s,aux l1) 
+      | MLsetref(s,l1) -> MLsetref(s,aux l1)
       | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
       | MLarray arr -> MLarray (Array.map aux arr)
       | MLisaccu (s, ind, l) -> MLisaccu (s, ind, aux l)
@@ -1369,8 +1374,8 @@ let subst_norm params args s =
 
 let subst_case params args s =
   let len = Array.length params in
-  assert (len > 0 && 
-	  Int.equal (Array.length args) len && 
+  assert (len > 0 &&
+          Int.equal (Array.length args) len &&
 	  let r = ref true and i = ref 0 in
 	  (* we test all arguments excepted the last *)
 	  while !i < len - 1  && !r do r := can_subst args.(!i); incr i done;
@@ -1380,13 +1385,13 @@ let subst_case params args s =
     s := add_subst params.(i) args.(i) !s
   done;
   !s, params.(len-1), args.(len-1)
-    
+
 let empty_gdef = Int.Map.empty, Int.Map.empty
 let get_norm (gnorm, _) i = Int.Map.find i gnorm
 let get_case (_, gcase) i = Int.Map.find i gcase
 
-let all_lam n bs = 
-  let f (_, l) = 
+let all_lam n bs =
+  let f (_, l) =
     match l with
     | MLlam(params, _) -> Int.equal (Array.length params) n
     | _ -> false in
@@ -1395,24 +1400,24 @@ let all_lam n bs =
 let commutative_cut annot a accu bs args =
   let mkb (c,b) =
      match b with
-     | MLlam(params, body) -> 
+     | MLlam(params, body) ->
          (c, Array.fold_left2 (fun body x v -> MLlet(x,v,body)) body params args)
      | _ -> assert false in
   MLmatch(annot, a, mkMLapp accu args, Array.map mkb bs)
 
-let optimize gdef l =   
+let optimize gdef l =
   let rec optimize s l =
     match l with
     | MLlocal id -> (try LNmap.find id s with Not_found -> l)
     | MLglobal _ | MLprimitive _ | MLint _ | MLuint _ -> l
-    | MLlam(params,body) -> 
+    | MLlam(params,body) ->
 	MLlam(params, optimize s body)
     | MLletrec(decls,body) ->
-	let opt_rec (f,params,body) = (f,params,optimize s body ) in 
+        let opt_rec (f,params,body) = (f,params,optimize s body ) in
 	MLletrec(Array.map opt_rec decls, optimize s body)
     | MLlet(id,def,body) ->
 	let def = optimize s def in
-	if can_subst def then optimize (add_subst id def s) body 
+        if can_subst def then optimize (add_subst id def s) body
 	else MLlet(id,def,optimize s body)
     | MLapp(f, args) ->
 	let args = Array.map (optimize s) args in
@@ -1421,21 +1426,21 @@ let optimize gdef l =
 	    (try
 	      let params,body = get_norm gdef i in
 	      let s = subst_norm params args s in
-	      optimize s body	    
+              optimize s body
 	    with Not_found -> MLapp(optimize s f, args))
 	| MLglobal (Gcase (_,i)) ->
-	    (try 
+            (try
 	      let params,body = get_case gdef i in
 	      let s, id, arg = subst_case params args s in
 	      if can_subst arg then optimize (add_subst id arg s) body
 	      else MLlet(id, arg, optimize s body)
 	    with Not_found ->  MLapp(optimize s f, args))
-	| _ -> 
+        | _ ->
             let f = optimize s f in
             match f with
             | MLmatch (annot,a,accu,bs) ->
-              if all_lam (Array.length args) bs then  
-                commutative_cut annot a accu bs args 
+              if all_lam (Array.length args) bs then
+                commutative_cut annot a accu bs args
               else MLapp(f, args)
             | _ -> MLapp(f, args)
 
@@ -1456,7 +1461,7 @@ let optimize gdef l =
 	MLmatch(annot, optimize s a, subst s accu, Array.map opt_b bs)
     | MLconstruct(prefix,c,args) ->
         MLconstruct(prefix,c,Array.map (optimize s) args)
-    | MLsetref(r,l) -> MLsetref(r, optimize s l) 
+    | MLsetref(r,l) -> MLsetref(r, optimize s l)
     | MLsequence(l1,l2) -> MLsequence(optimize s l1, optimize s l2)
     | MLarray arr -> MLarray (Array.map (optimize s) arr)
     | MLisaccu (pf, ind, l) -> MLisaccu (pf, ind, optimize s l)
@@ -1475,7 +1480,7 @@ let optimize_stk stk =
     | Gletcase _ -> assert false
     | _ -> gdef in
   let gdef = List.fold_left add_global empty_gdef stk in
-  let optimize_global g = 
+  let optimize_global g =
     match g with
     | Glet(Gconstant (prefix, c), body) ->
         Glet(Gconstant (prefix, c), optimize gdef body)
@@ -1548,7 +1553,7 @@ let string_of_gname g =
   | Gnorm (l,i) ->
       Format.sprintf "norm_%s_%i" (string_of_label_def l) i
   | Ginternal s -> Format.sprintf "%s" s
-  | Gnormtbl (l,i) -> 
+  | Gnormtbl (l,i) ->
       Format.sprintf "normtbl_%s_%i" (string_of_label_def l) i
   | Grel i ->
       Format.sprintf "rel_%i" i
@@ -1570,7 +1575,7 @@ let pp_ldecls fmt ids =
 let string_of_construct prefix ((mind,i),j) =
   let id = Format.sprintf "Construct_%s_%i_%i" (string_of_mind mind) i (j-1) in
   prefix ^ id
-   
+
 let pp_int fmt i =
   if i < 0 then Format.fprintf fmt "(%i)" i else Format.fprintf fmt "%i" i
 
@@ -1585,7 +1590,7 @@ let pp_mllam fmt l =
 	Format.fprintf fmt "@[(fun%a@ ->@\n %a)@]"
 	  pp_ldecls ids pp_mllam body
     | MLletrec(defs, body) ->
-	Format.fprintf fmt "@[%a@ in@\n%a@]" pp_letrec defs 
+        Format.fprintf fmt "@[%a@ in@\n%a@]" pp_letrec defs
 	  pp_mllam body
     | MLlet(id,def,body) ->
 	Format.fprintf fmt "@[(let@ %a@ =@\n %a@ in@\n%a)@]"
@@ -1594,17 +1599,17 @@ let pp_mllam fmt l =
 	Format.fprintf fmt "@[%a@ %a@]" pp_mllam f (pp_args true) args
     | MLif(t,l1,l2) ->
 	Format.fprintf fmt "@[(if %a then@\n  %a@\nelse@\n  %a)@]"
-	  pp_mllam t pp_mllam l1 pp_mllam l2 
+          pp_mllam t pp_mllam l1 pp_mllam l2
     | MLmatch (annot, c, accu_br, br) ->
 	  let mind,i = annot.asw_ind in
       let prefix = annot.asw_prefix in
 	  let accu = Format.sprintf "%sAccu_%s_%i" prefix (string_of_mind mind) i in
-	  Format.fprintf fmt 
+          Format.fprintf fmt
 	    "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  %a@\n%aend@]"
 	  pp_mllam c accu pp_mllam accu_br (pp_branches prefix) br
-	  
+
     | MLconstruct(prefix,c,args) ->
-        Format.fprintf fmt "@[(Obj.magic (%s%a) : Nativevalues.t)@]" 
+        Format.fprintf fmt "@[(Obj.magic (%s%a) : Nativevalues.t)@]"
           (string_of_construct prefix c) pp_cargs args
     | MLint i -> pp_int fmt i
     | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile i)
@@ -1632,7 +1637,7 @@ let pp_mllam fmt l =
     let len = Array.length defs in
     let pp_one_rec (fn, argsn, body) =
       Format.fprintf fmt "%a%a =@\n  %a"
-	pp_lname fn 
+        pp_lname fn
 	pp_ldecls argsn pp_mllam body in
     Format.fprintf fmt "@[let rec ";
     pp_one_rec defs.(0);
@@ -1667,7 +1672,7 @@ let pp_mllam fmt l =
     | 1 -> Format.fprintf fmt " %a" pp_blam args.(0)
     | _ -> Format.fprintf fmt "(%a)" (pp_args false) args
 
-  and pp_cparam fmt param = 
+  and pp_cparam fmt param =
     match param with
     | Some l -> pp_mllam fmt (MLlocal l)
     | None -> Format.fprintf fmt "_"
@@ -1677,40 +1682,40 @@ let pp_mllam fmt l =
     match len with
     | 0 -> ()
     | 1 -> Format.fprintf fmt " %a" pp_cparam params.(0)
-    | _ -> 
+    | _ ->
 	let aux fmt params =
 	  Format.fprintf fmt "%a" pp_cparam params.(0);
 	  for i = 1 to len - 1 do
 	    Format.fprintf fmt ",%a" pp_cparam params.(i)
-	  done in 
+          done in
 	Format.fprintf fmt "(%a)" aux params
 
   and pp_branches prefix fmt bs =
     let pp_branch (cargs,body) =
-      let pp_c fmt (cn,args) = 
-        Format.fprintf fmt "| %s%a " 
+      let pp_c fmt (cn,args) =
+        Format.fprintf fmt "| %s%a "
       (string_of_construct prefix cn) pp_cparams args in
       let rec pp_cargs fmt cargs =
         match cargs with
     | [] -> ()
-    | cargs::cargs' -> 
+    | cargs::cargs' ->
         Format.fprintf fmt "%a%a" pp_c cargs pp_cargs cargs' in
-      Format.fprintf fmt "%a ->@\n  %a@\n" 
+      Format.fprintf fmt "%a ->@\n  %a@\n"
     pp_cargs cargs pp_mllam body
       in
     Array.iter pp_branch bs
 
   and pp_primitive fmt = function
-    | Mk_prod -> Format.fprintf fmt "mk_prod_accu" 
+    | Mk_prod -> Format.fprintf fmt "mk_prod_accu"
     | Mk_sort -> Format.fprintf fmt "mk_sort_accu"
     | Mk_ind -> Format.fprintf fmt "mk_ind_accu"
     | Mk_const -> Format.fprintf fmt "mk_constant_accu"
     | Mk_sw -> Format.fprintf fmt "mk_sw_accu"
-    | Mk_fix(rec_pos,start) -> 
-	let pp_rec_pos fmt rec_pos = 
+    | Mk_fix(rec_pos,start) ->
+        let pp_rec_pos fmt rec_pos =
 	  Format.fprintf fmt "@[[| %i" rec_pos.(0);
 	  for i = 1 to Array.length rec_pos - 1 do
-	    Format.fprintf fmt "; %i" rec_pos.(i) 
+            Format.fprintf fmt "; %i" rec_pos.(i)
 	  done;
 	  Format.fprintf fmt " |]@]" in
 	Format.fprintf fmt "mk_fix_accu %a %i" pp_rec_pos rec_pos start
@@ -1751,7 +1756,7 @@ let pp_mllam fmt l =
                        pp_mllam (MLglobal (Gconstant (prefix,c)))
   in
   Format.fprintf fmt "@[%a@]" pp_mllam l
-  
+
 let pp_array fmt t =
   let len = Array.length t in
   Format.fprintf fmt "@[[|";
@@ -1761,19 +1766,19 @@ let pp_array fmt t =
   if len > 0 then
     Format.fprintf fmt "%a" pp_mllam t.(len - 1);
   Format.fprintf fmt "|]@]"
-  
+
 let pp_global fmt g =
   match g with
   | Glet (gn, c) ->
       let ids, c = decompose_MLlam c in
-      Format.fprintf fmt "@[let %a%a =@\n  %a@]@\n@." pp_gname gn 
+      Format.fprintf fmt "@[let %a%a =@\n  %a@]@\n@." pp_gname gn
 	pp_ldecls ids
 	pp_mllam c
   | Gopen s ->
       Format.fprintf fmt "@[open %s@]@." s
   | Gtype ((mind, i), lar) ->
       let l = string_of_mind mind in
-      let rec aux s ar = 
+      let rec aux s ar =
 	if Int.equal ar 0 then s else aux (s^" * Nativevalues.t") (ar-1) in
       let pp_const_sig i fmt j ar =
         let sig_str = if ar > 0 then aux "of Nativevalues.t" (ar-1) else "" in
@@ -1789,11 +1794,11 @@ let pp_global fmt g =
 	pp_ldecls params pp_array t
   | Gtblnorm (g, params, t) ->
       Format.fprintf fmt "@[let %a %a =@\n  %a@]@\n@." pp_gname g
-	pp_ldecls params pp_array t 
+        pp_ldecls params pp_array t
   | Gletcase(gn,params,annot,a,accu,bs) ->
       Format.fprintf fmt "@[(* Hash = %i *)@\nlet rec %a %a =@\n  %a@]@\n@."
       (hash_global g)
-	pp_gname gn pp_ldecls params 
+        pp_gname gn pp_ldecls params
 	pp_mllam (MLmatch(annot,a,accu,bs))
   | Gcomment s ->
       Format.fprintf fmt "@[(* %s *)@]@." s
@@ -1878,7 +1883,7 @@ let compile_constant env sigma prefix ~interactive con cb =
       in
       if !Flags.debug then Feedback.msg_debug (Pp.str "Optimized mllambda code");
       code, name
-    | _ -> 
+    | _ ->
         let i = push_symbol (SymbConst con) in
 	let args =
 	  if no_univs then [|get_const_code i; MLarray [||]|]
@@ -1932,10 +1937,10 @@ let compile_mind mb mind stack =
       Glet(name, MLapp (MLprimitive Mk_ind, args))
     in
     let nparams = mb.mind_nparams in
-    let params = 
+    let params =
       Array.init nparams (fun i -> {lname = param_name; luid = i}) in
-    let add_construct j acc (_,arity) = 
-      let args = Array.init arity (fun k -> {lname = arg_name; luid = k}) in 
+    let add_construct j acc (_,arity) =
+      let args = Array.init arity (fun k -> {lname = arg_name; luid = k}) in
       let c = ind, (j+1) in
 	  Glet(Gconstruct ("", c),
 	     mkMLlam (Array.append params args)
