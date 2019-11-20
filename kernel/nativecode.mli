@@ -17,6 +17,8 @@ open Nativelambda
 compiler. mllambda represents a fragment of ML, and can easily be printed
 to OCaml code. *)
 
+type lname
+
 type mllambda
 type global
 
@@ -54,8 +56,6 @@ val get_proj : symbols -> int -> inductive * int
 
 val get_symbols : unit -> symbols
 
-val push_symbol : symbol -> int
-
 type code_location_update
 type code_location_updates
 type linkable_code = global list * code_location_updates
@@ -74,12 +74,11 @@ val compile_constant_field : constr_to_lambda -> env -> string -> Constant.t ->
 val compile_mind_field : ModPath.t -> Label.t ->
   global list -> mutual_inductive_body -> global list
 
-val compile_mind_deps : env -> string -> interactive:bool -> linkable_code -> Names.Mindmap_env.key -> linkable_code
-
 val compile_deps : constr_to_lambda ->
   env -> evars -> string -> interactive:bool ->
   linkable_code -> constr -> linkable_code
 
+val compile_with_fv : env -> evars -> lname option -> global list -> Label.t option -> lambda -> global list * mllambda
 val mk_conv_code : constr_to_lambda -> env -> evars -> string -> constr -> constr -> linkable_code
 val mk_norm_code : constr_to_lambda -> env -> evars -> string -> constr -> linkable_code
 
