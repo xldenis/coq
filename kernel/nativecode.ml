@@ -628,6 +628,14 @@ let mkMLapp f args =
     | MLapp(f,args') -> MLapp(f,Array.append args' args)
     | _ -> MLapp(f,args)
 
+let mkMLlet nm x body =
+  MLlet(nm, x, body)
+
+let mkMLarray arr =
+  MLarray(arr)
+
+let mkMLlocal n = MLlocal n
+
 let mkForceCofix prefix ind arg =
   let name = fresh_lname Anonymous in
   MLlet (name, arg,
@@ -655,6 +663,9 @@ type global =
   | Gtype of inductive * int array
     (* ind name, arities of constructors *)
   | Gcomment of string
+
+let mkGlobalVarAssum id = Glet(Gnamed id, MLprimitive (Mk_var id))
+let mkGlobalRelAssum n  = Glet(Grel n, MLprimitive (Mk_rel n))
 
 (* Alpha-equivalence on globals *)
 let eq_global g1 g2 =
@@ -1844,7 +1855,7 @@ and compile_rel env sigma univ auxdefs n =
       let auxdefs,code = compile_with_fv env sigma univ auxdefs None code in
       Glet(Grel n, code)::auxdefs
   | LocalAssum _ ->
-      Glet(Grel n, MLprimitive (Mk_rel n))::auxdefs
+      mkGlobalRelAssum n :: auxdefs
 
 and compile_named env sigma univ auxdefs id =
   let open Context.Named.Declaration in
@@ -1854,7 +1865,7 @@ and compile_named env sigma univ auxdefs id =
       let auxdefs,code = compile_with_fv env sigma univ auxdefs None code in
       Glet(Gnamed id, code)::auxdefs
   | LocalAssum _ ->
-      Glet(Gnamed id, MLprimitive (Mk_var id))::auxdefs
+      mkGlobalVarAssum id :: auxdefs
 
 let compile_constant env sigma prefix ~interactive con cb =
     let no_univs = 0 = Univ.AUContext.size (Declareops.constant_polymorphic_context cb) in
@@ -2106,6 +2117,15 @@ let mk_conv_code env sigma prefix t1 t2 =
       [|MLglobal (Ginternal "()")|])) in
   header::gl, (mind_updates, const_updates)
 
+let mk_norm_harness mllam gl =
+  let t1 = mk_internal_let "t1" mllam in
+  let g1 = MLglobal (Ginternal "t1") in
+  let setref = Glet(Ginternal "_", MLsetref("rt1",g1)) in
+  let gl = List.rev (setref :: t1 :: gl) in
+  let header = Glet(Ginternal "symbols_tbl",
+    MLapp (MLglobal (Ginternal "get_symbols"),
+      [|MLglobal (Ginternal "()")|])) in
+  header::gl
 let mk_norm_code env sigma prefix t =
   clear_symbols ();
   clear_global_tbl ();
@@ -2115,14 +2135,8 @@ let mk_norm_code env sigma prefix t =
   in
   let code = lambda_of_constr env sigma t in
   let (gl,code) = compile_with_fv env sigma None gl None code in
-  let t1 = mk_internal_let "t1" code in
-  let g1 = MLglobal (Ginternal "t1") in
-  let setref = Glet(Ginternal "_", MLsetref("rt1",g1)) in
-  let gl = List.rev (setref :: t1 :: gl) in
-  let header = Glet(Ginternal "symbols_tbl",
-    MLapp (MLglobal (Ginternal "get_symbols"),
-      [|MLglobal (Ginternal "()")|])) in
-  header::gl, (mind_updates, const_updates)
+  let globals = mk_norm_harness code gl in
+  globals, (mind_updates, const_updates)
 
 let mk_library_header dir =
   let libname = Format.sprintf "(str_decode \"%s\")" (str_encode dir) in

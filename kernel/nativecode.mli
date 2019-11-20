@@ -12,20 +12,43 @@ open Constr
 open Declarations
 open Environ
 open Nativelambda
+open Nativevalues
 
 (** This file defines the mllambda code generation phase of the native
 compiler. mllambda represents a fragment of ML, and can easily be printed
 to OCaml code. *)
 
+type lname
 type mllambda
+
+val mkMLlet : lname -> mllambda -> mllambda -> mllambda
+val mkMLapp : mllambda -> mllambda array -> mllambda
+val mkMLlocal : lname -> mllambda
+val mkMLlam : lname array -> mllambda -> mllambda
+val mkMLarray : mllambda array -> mllambda
+
 type global
+
+val mkGlobalRelAssum : int -> global
+val mkGlobalVarAssum : Id.t -> global
 
 val pp_global : Format.formatter -> global -> unit
 
 val mk_open : string -> global
 
 (* Precomputed values for a compilation unit *)
-type symbol
+type symbol =
+  | SymbValue of Nativevalues.t
+  | SymbSort of Sorts.t
+  | SymbName of Name.t
+  | SymbConst of Constant.t
+  | SymbMatch of annot_sw
+  | SymbInd of inductive
+  | SymbMeta of metavariable
+  | SymbEvar of Evar.t
+  | SymbLevel of Univ.Level.t
+  | SymbProj of (inductive * int)
+
 type symbols
 
 val empty_symbols : symbols
@@ -54,6 +77,8 @@ val get_proj : symbols -> int -> inductive * int
 
 val get_symbols : unit -> symbols
 
+val push_symbol : symbol -> int
+
 type code_location_update
 type code_location_updates
 type linkable_code = global list * code_location_updates
@@ -72,6 +97,8 @@ val compile_mind_field : ModPath.t -> Label.t ->
 
 val mk_conv_code : env -> evars -> string -> constr -> constr -> linkable_code
 val mk_norm_code : env -> evars -> string -> constr -> linkable_code
+
+val mk_norm_harness : mllambda -> global list -> global list
 
 val mk_library_header : DirPath.t -> global list
 
